@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   generator: "SymphonyIceAttack",
   applicationName: "3D 2048 Game",
   referrer: "origin-when-cross-origin",
-  metadataBase: new URL("https://3048.onl"),
+  metadataBase: new URL("https://www.3048.onl/"),
   openGraph: {
     type: "website",
     locale: "en_US",
