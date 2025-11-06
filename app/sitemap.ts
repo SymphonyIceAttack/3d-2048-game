@@ -1,14 +1,74 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { readItems } from "@directus/sdk";
 import type { MetadataRoute } from "next";
 import directus from "@/lib/directus";
 
 export const revalidate = 86400; // 24 hours in seconds
 
+function discoverRoutes(dir: string, baseDir: string = dir): string[] {
+  const routes: string[] = [];
+
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+
+      // Skip api routes, private folders, and node_modules
+      if (
+        entry.name.startsWith("_") ||
+        entry.name === "api" ||
+        entry.name === "node_modules"
+      ) {
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        // Skip dynamic route segments for now (we'll handle them separately)
+        if (!entry.name.startsWith("[")) {
+          routes.push(...discoverRoutes(fullPath, baseDir));
+        }
+      } else if (
+        entry.name === "page.tsx" ||
+        entry.name === "page.ts" ||
+        entry.name === "page.jsx" ||
+        entry.name === "page.js"
+      ) {
+        // Convert file path to URL route
+        const relativePath = dir.replace(baseDir, "");
+        const route = relativePath === "" ? "/" : relativePath;
+        routes.push(route);
+      }
+    }
+  } catch (error) {
+    console.error("[v0] Error discovering routes:", error);
+  }
+
+  return routes;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://yourdomain.com";
 
   try {
-    // Fetch all published posts from Directus
+    const appDir = join(process.cwd(), "app");
+    const discoveredRoutes = discoverRoutes(appDir);
+
+    console.log("[v0] Discovered routes:", discoveredRoutes);
+
+    // Generate sitemap entries for discovered static routes
+    const staticPages: MetadataRoute.Sitemap = discoveredRoutes.map(
+      (route) => ({
+        url: `${baseUrl}${route}`,
+        lastModified: new Date(),
+        changeFrequency:
+          route === "/" ? ("monthly" as const) : ("weekly" as const),
+        priority: route === "/" ? 1.0 : 0.8,
+      }),
+    );
+
+    // Fetch all published posts from Directus for dynamic routes
     const posts = await directus.request(
       readItems("posts", {
         filter: {
@@ -27,38 +87,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    // Static pages
-    const staticPages: MetadataRoute.Sitemap = [
-      {
-        url: baseUrl,
-        lastModified: new Date(),
-        changeFrequency: "monthly" as const,
-        priority: 1.0,
-      },
-      {
-        url: `${baseUrl}/blog`,
-        lastModified: new Date(),
-        changeFrequency: "daily" as const,
-        priority: 0.8,
-      },
-    ];
-
     return [...staticPages, ...postEntries];
   } catch (error) {
     console.error("[v0] Error generating sitemap:", error);
-    // Return static pages only if Directus fetch fails
+    // Return minimal fallback if everything fails
     return [
       {
         url: baseUrl,
         lastModified: new Date(),
         changeFrequency: "monthly" as const,
         priority: 1.0,
-      },
-      {
-        url: `${baseUrl}/blog`,
-        lastModified: new Date(),
-        changeFrequency: "daily" as const,
-        priority: 0.8,
       },
     ];
   }
