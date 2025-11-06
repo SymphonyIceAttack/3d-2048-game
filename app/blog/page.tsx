@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   description: "Read our latest articles and updates",
 };
 
+export const revalidate = 86400;
+
 export default async function BlogPage() {
   try {
     console.log("[v0] Fetching posts from Directus...");
