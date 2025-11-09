@@ -21,6 +21,7 @@ type Post = {
   unique_view_count: number;
   view_count: number;
   last_viewed_at: string | null;
+  imageurl: string | null;
   seo: {
     title: string;
     meta_description: string;

@@ -1,6 +1,7 @@
 import { readItems } from "@directus/sdk";
 import type { Metadata } from "next";
 import { draftMode } from "next/headers";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MarkdownWithIds } from "@/components/markdown-with-ids";
 import { TableOfContents } from "@/components/table-of-contents";
@@ -23,6 +24,16 @@ export default async function PostPage({
             _eq: slug,
           },
         },
+        fields: [
+          "id",
+          "title",
+          "slug",
+          "description",
+          "published_at",
+          "content",
+          "status",
+          "imageurl",
+        ],
         limit: 1,
       }),
     );
@@ -33,7 +44,7 @@ export default async function PostPage({
       notFound();
     }
 
-    const { title, content, description, published_at } = post;
+    const { title, content, description, published_at, imageurl } = post;
 
     return (
       <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-purple-950 dark:to-slate-900 py-12 px-4">
@@ -69,6 +80,20 @@ export default async function PostPage({
                   )}
                 </CardHeader>
                 <CardContent className="prose prose-lg dark:prose-invert max-w-none">
+                  {imageurl && (
+                    <div className="relative w-full h-[400px] mb-8 rounded-lg overflow-hidden">
+                      <Image
+                        src={
+                          `https://symcloud.top/${imageurl}` ||
+                          "/placeholder.svg"
+                        }
+                        alt={title}
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                    </div>
+                  )}
                   <MarkdownWithIds content={content} />
                 </CardContent>
               </Card>
