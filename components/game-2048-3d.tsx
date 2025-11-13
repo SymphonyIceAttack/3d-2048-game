@@ -20,17 +20,19 @@ const GRID_SIZE = 4;
 const getTileColor = (value: number): string => {
   const colors: Record<number, string> = {
     0: "#e5e7eb",
-    2: "#f3f4f6",
-    4: "#e5e7eb",
-    8: "#fbbf24",
-    16: "#f59e0b",
-    32: "#f97316",
-    64: "#ef4444",
-    128: "#eab308",
-    256: "#84cc16",
-    512: "#22c55e",
-    1024: "#10b981",
-    2048: "#06b6d4",
+    2: "#fef3c7", // Light amber
+    4: "#fde68a", // Amber
+    8: "#fbbf24", // Golden yellow
+    16: "#f59e0b", // Orange
+    32: "#f97316", // Bright orange
+    64: "#ef4444", // Red
+    128: "#ec4899", // Pink
+    256: "#d946ef", // Magenta
+    512: "#a855f7", // Purple
+    1024: "#8b5cf6", // Violet
+    2048: "#06b6d4", // Cyan
+    4096: "#06d6a0", // Teal
+    8192: "#10b981", // Emerald
   };
   return colors[value] || "#06b6d4";
 };
