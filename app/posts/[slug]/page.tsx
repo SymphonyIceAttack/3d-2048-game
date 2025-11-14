@@ -1,6 +1,7 @@
 import { readItems } from "@directus/sdk";
 import type { Metadata } from "next";
 import { draftMode } from "next/headers";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MarkdownWithIds } from "@/components/blog/markdown-with-ids";
 import { PostCTA } from "@/components/blog/post-cta";
@@ -98,7 +99,8 @@ export default async function PostPage({
                   <CardContent className="prose prose-lg dark:prose-invert max-w-none">
                     {imageurl && (
                       <div className="relative w-full h-[400px] mb-8 rounded-lg overflow-hidden">
-                        <img
+                        <Image
+                          fill={true}
                           src={`https://symcloud.top/${imageurl}`}
                           alt={title}
                           className="w-full h-full object-cover"

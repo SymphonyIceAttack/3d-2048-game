@@ -16,17 +16,17 @@ export function TableOfContents({ content }: { content: string }) {
   useEffect(() => {
     const headingRegex = /^(#{1,6})\s+(.+)$/gm;
     const extractedHeadings: Heading[] = [];
-    let match;
+    let match = headingRegex.exec(content);
 
-    while ((match = headingRegex.exec(content)) !== null) {
+    while (match !== null) {
       const level = match[1].length;
       const text = match[2].trim();
       const id = text
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
         .replace(/\s+/g, "-");
-
       extractedHeadings.push({ id, text, level });
+      match = headingRegex.exec(content);
     }
 
     setHeadings(extractedHeadings);
@@ -47,7 +47,9 @@ export function TableOfContents({ content }: { content: string }) {
     const headingElements = headings
       .map((h) => document.getElementById(h.id))
       .filter(Boolean);
-    headingElements.forEach((el) => el && observer.observe(el));
+    headingElements.forEach((el) => {
+      el && observer.observe(el);
+    });
 
     return () => observer.disconnect();
   }, [headings]);
