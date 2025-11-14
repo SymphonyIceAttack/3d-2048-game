@@ -12,8 +12,9 @@ import {
 import directus from "@/lib/directus";
 
 export const metadata: Metadata = {
-  title: "Posts - Fancy Text Generator",
-  description: "Read our latest articles and updates",
+  title: "3D 2048 Game - Play the Classic Puzzle in 3D Space",
+  description:
+    "Experience the classic 2048 puzzle game in stunning 3D! Play in a 4x4x4 cube space with smooth controls and immersive graphics. Rotate the view and combine tiles to reach 2048.",
 };
 
 export const revalidate = 86400;
