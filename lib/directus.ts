@@ -35,19 +35,6 @@ type Schema = {
 const directusUrl = process.env.NEXT_PUBLIC_DIRECTUS_URL;
 const accessToken = process.env.DIRECTUS_ACCESS_TOKEN;
 
-if (!directusUrl) {
-  console.error("[v0] NEXT_PUBLIC_DIRECTUS_URL is not set");
-}
-
-if (!accessToken) {
-  console.error(
-    "[v0] DIRECTUS_ACCESS_TOKEN is not set - authentication will fail",
-  );
-}
-
-console.log("[v0] Directus URL:", directusUrl || "NOT SET");
-console.log("[v0] Access Token:", accessToken ? "SET" : "NOT SET");
-
 const directus = createDirectus<Schema>(directusUrl || "http://localhost:8055")
   .with(rest())
   .with(staticToken(accessToken || ""));

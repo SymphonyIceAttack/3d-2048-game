@@ -42,7 +42,7 @@ export default function Home() {
             <Sun className="h-5 w-5" />
           )}
         </Button>
-        <Link href="/blog">
+        <Link href="/posts">
           <Button
             variant="ghost"
             size="lg"
