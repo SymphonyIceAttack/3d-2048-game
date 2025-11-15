@@ -29,24 +29,24 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col items-center p-4 bg-background">
-      <nav className="absolute top-6 right-6 flex items-center gap-3">
+      <nav className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-2 md:gap-3">
         <Button
           onClick={toggleTheme}
           variant="ghost"
           size="icon"
-          className="font-semibold hover:bg-primary/10 transition-colors"
+          className="font-semibold hover:bg-primary/10 transition-colors h-9 w-9 md:h-10 md:w-10"
         >
           {theme === "light" ? (
-            <Moon className="h-5 w-5" />
+            <Moon className="h-4 w-4 md:h-5 md:w-5" />
           ) : (
-            <Sun className="h-5 w-5" />
+            <Sun className="h-4 w-4 md:h-5 md:w-5" />
           )}
         </Button>
-        <Link href="/posts">
+        <Link href="/blog">
           <Button
             variant="ghost"
-            size="lg"
-            className="font-semibold hover:bg-primary hover:text-primary-foreground transition-colors"
+            size="sm"
+            className="font-semibold hover:bg-primary hover:text-primary-foreground transition-colors md:text-base"
           >
             Blog
           </Button>
