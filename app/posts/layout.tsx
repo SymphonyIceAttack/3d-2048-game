@@ -1,5 +1,3 @@
-"use client";
-
 import { ThemeProvider } from "@/components/blog/theme-provider";
 
 export default function BlogLayout({

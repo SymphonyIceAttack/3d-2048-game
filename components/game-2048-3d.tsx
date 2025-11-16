@@ -1,234 +1,24 @@
 "use client";
 
+import { a, useSpring } from "@react-spring/three";
 import {
   Environment,
   OrbitControls,
   RoundedBox,
+  Sparkles,
   Text,
 } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { RotateCcw } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { RotateCcw, Undo2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Mesh } from "three";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-
-type Board = number[][][];
+import { useGameEngine3D } from "@/lib/game-engine/hooks";
+import { TILE_COLORS } from "@/lib/game-engine/types";
+import { GlowEffect, ParticleBurst } from "./particle-system";
 
 const GRID_SIZE = 4;
-
-const getTileColor = (value: number): string => {
-  const colors: Record<number, string> = {
-    0: "#e5e7eb",
-    2: "#fef3c7", // Light amber
-    4: "#fde68a", // Amber
-    8: "#fbbf24", // Golden yellow
-    16: "#f59e0b", // Orange
-    32: "#f97316", // Bright orange
-    64: "#ef4444", // Red
-    128: "#ec4899", // Pink
-    256: "#d946ef", // Magenta
-    512: "#a855f7", // Purple
-    1024: "#8b5cf6", // Violet
-    2048: "#06b6d4", // Cyan
-    4096: "#06d6a0", // Teal
-    8192: "#10b981", // Emerald
-  };
-  return colors[value] || "#06b6d4";
-};
-
-interface TileProps {
-  value: number;
-  position: [number, number, number];
-}
-
-function Tile({ value, position }: TileProps) {
-  const meshRef = useRef<Mesh>(null);
-  const [scale, setScale] = useState(0);
-
-  useEffect(() => {
-    setScale(value === 0 ? 0 : 1);
-  }, [value]);
-
-  useFrame(() => {
-    if (meshRef.current) {
-      const lerp = (start: number, end: number, t: number) =>
-        start * (1 - t) + end * t;
-      meshRef.current.scale.x = lerp(meshRef.current.scale.x, scale, 0.2);
-      meshRef.current.scale.y = lerp(meshRef.current.scale.y, scale, 0.2);
-      meshRef.current.scale.z = lerp(meshRef.current.scale.z, scale, 0.2);
-    }
-  });
-
-  if (value === 0) return null;
-
-  return (
-    <group position={position}>
-      <RoundedBox
-        ref={meshRef}
-        args={[0.8, 0.8, 0.8]}
-        radius={0.08}
-        smoothness={4}
-        castShadow
-        receiveShadow
-      >
-        <meshStandardMaterial
-          color={getTileColor(value)}
-          roughness={0.3}
-          metalness={0.1}
-        />
-      </RoundedBox>
-      {/* Front face (Z+) */}
-      <Text
-        position={[0, 0, 0.41]}
-        fontSize={0.3}
-        color="#1f2937"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {value}
-      </Text>
-      {/* Back face (Z-) */}
-      <Text
-        position={[0, 0, -0.41]}
-        fontSize={0.3}
-        color="#1f2937"
-        anchorX="center"
-        anchorY="middle"
-        rotation={[0, Math.PI, 0]}
-      >
-        {value}
-      </Text>
-      {/* Right face (X+) */}
-      <Text
-        position={[0.41, 0, 0]}
-        fontSize={0.3}
-        color="#1f2937"
-        anchorX="center"
-        anchorY="middle"
-        rotation={[0, Math.PI / 2, 0]}
-      >
-        {value}
-      </Text>
-      {/* Left face (X-) */}
-      <Text
-        position={[-0.41, 0, 0]}
-        fontSize={0.3}
-        color="#1f2937"
-        anchorX="center"
-        anchorY="middle"
-        rotation={[0, -Math.PI / 2, 0]}
-      >
-        {value}
-      </Text>
-      {/* Top face (Y+) */}
-      <Text
-        position={[0, 0.41, 0]}
-        fontSize={0.3}
-        color="#1f2937"
-        anchorX="center"
-        anchorY="middle"
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        {value}
-      </Text>
-      {/* Bottom face (Y-) */}
-      <Text
-        position={[0, -0.41, 0]}
-        fontSize={0.3}
-        color="#1f2937"
-        anchorX="center"
-        anchorY="middle"
-        rotation={[Math.PI / 2, 0, 0]}
-      >
-        {value}
-      </Text>
-    </group>
-  );
-}
-
-function GameBoard({ board }: { board: Board }) {
-  const spacing = 1.0;
-
-  return (
-    <group>
-      {/* Grid frame */}
-      {Array.from({ length: GRID_SIZE + 1 }).map((_, i) => {
-        const pos = -1.5 + i * spacing;
-        return (
-          <React.Fragment key={`grid-${i}`}>
-            {/* X-axis lines */}
-            {Array.from({ length: GRID_SIZE + 1 }).map((_, j) => {
-              const posY = -1.5 + j * spacing;
-              return (
-                <React.Fragment key={`x-${i}-${j}`}>
-                  <mesh position={[pos, posY, 0]}>
-                    <boxGeometry args={[0.02, 0.02, 4]} />
-                    <meshStandardMaterial
-                      color="#6b7280"
-                      transparent
-                      opacity={0.3}
-                    />
-                  </mesh>
-                </React.Fragment>
-              );
-            })}
-            {/* Y-axis lines */}
-            {Array.from({ length: GRID_SIZE + 1 }).map((_, k) => {
-              const posZ = -1.5 + k * spacing;
-              return (
-                <React.Fragment key={`y-${i}-${k}`}>
-                  <mesh position={[pos, 0, posZ]}>
-                    <boxGeometry args={[4, 0.02, 0.02]} />
-                    <meshStandardMaterial
-                      color="#6b7280"
-                      transparent
-                      opacity={0.3}
-                    />
-                  </mesh>
-                </React.Fragment>
-              );
-            })}
-            {/* Z-axis lines */}
-            {Array.from({ length: GRID_SIZE + 1 }).map((_, j) => {
-              const posY = -1.5 + j * spacing;
-              return (
-                <React.Fragment key={`z-${i}-${j}`}>
-                  <mesh position={[0, posY, pos]}>
-                    <boxGeometry args={[4, 0.02, 0.02]} />
-                    <meshStandardMaterial
-                      color="#6b7280"
-                      transparent
-                      opacity={0.3}
-                    />
-                  </mesh>
-                </React.Fragment>
-              );
-            })}
-          </React.Fragment>
-        );
-      })}
-
-      {/* Tiles in 3D space */}
-      {board.map((layer, z) =>
-        layer.map((row, y) =>
-          row.map((cell, x) => {
-            const posX = -1.5 + x * spacing;
-            const posY = 1.5 - y * spacing;
-            const posZ = -1.5 + z * spacing;
-            return (
-              <Tile
-                key={`${x}-${y}-${z}`}
-                value={cell}
-                position={[posX, posY, posZ]}
-              />
-            );
-          }),
-        ),
-      )}
-    </group>
-  );
-}
 
 const KeyboardKey = ({
   children,
@@ -253,206 +43,270 @@ const KeyboardKey = ({
   );
 };
 
-export default function Game2048_3D() {
-  const [board, setBoard] = useState<Board>([]);
-  const [score, setScore] = useState(0);
-  const [bestScore, setBestScore] = useState(0);
-  const [gameOver, setGameOver] = useState(false);
-  const [won, setWon] = useState(false);
+interface TileProps {
+  value: number;
+  position: [number, number, number];
+  isNew?: boolean;
+  isMerged?: boolean;
+}
 
-  const initializeBoard = useCallback(() => {
-    const newBoard: Board = Array(GRID_SIZE)
-      .fill(null)
-      .map(() =>
-        Array(GRID_SIZE)
-          .fill(null)
-          .map(() => Array(GRID_SIZE).fill(0)),
-      );
-    addRandomTile(newBoard);
-    addRandomTile(newBoard);
-    return newBoard;
-  }, []);
+function Tile({ value, position, isNew, isMerged }: TileProps) {
+  const meshRef = useRef<Mesh>(null);
+  const [showParticles, setShowParticles] = useState(false);
+  const [showGlow, setShowGlow] = useState(false);
+
+  const color = TILE_COLORS[value] || TILE_COLORS[4096];
+
+  const targetScale = isNew ? 1.2 : isMerged ? 1.3 : 1.0;
+
+  const springs = useSpring({
+    scale: [targetScale, targetScale, targetScale],
+    config: { tension: 300, friction: 20 },
+  });
 
   useEffect(() => {
-    const savedBest = localStorage.getItem("2048-3d-best-score");
-    if (savedBest) setBestScore(Number.parseInt(savedBest, 10));
-    setBoard(initializeBoard());
-  }, [initializeBoard]);
+    if (isMerged) {
+      setShowParticles(true);
+      setShowGlow(true);
+      const timer = setTimeout(() => {
+        setShowGlow(false);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isMerged]);
 
-  const addRandomTile = (board: Board) => {
-    const emptyCells: [number, number, number][] = [];
-    for (let z = 0; z < GRID_SIZE; z++) {
-      for (let y = 0; y < GRID_SIZE; y++) {
-        for (let x = 0; x < GRID_SIZE; x++) {
-          if (board[z][y][x] === 0) emptyCells.push([z, y, x]);
-        }
+  if (value === 0) return null;
+
+  return (
+    <group position={position}>
+      {showGlow && (
+        <GlowEffect
+          position={[0, 0, 0]}
+          color={color}
+          size={2}
+          duration={0.8}
+        />
+      )}
+
+      {showParticles && (
+        <ParticleBurst
+          position={[0, 0, 0]}
+          count={25}
+          color={color}
+          onComplete={() => setShowParticles(false)}
+        />
+      )}
+
+      <a.group scale={springs.scale.to((s) => [s, s, s])}>
+        <RoundedBox
+          ref={meshRef}
+          args={[0.8, 0.8, 0.8]}
+          radius={0.08}
+          smoothness={4}
+          castShadow
+          receiveShadow
+        >
+          <meshStandardMaterial
+            color={color}
+            roughness={0.3}
+            metalness={0.1}
+            emissive={isMerged ? color : "#000000"}
+            emissiveIntensity={isMerged ? 0.3 : 0}
+          />
+        </RoundedBox>
+
+        {value >= 128 && (
+          <Sparkles
+            count={20}
+            scale={[1.2, 1.2, 1.2]}
+            size={2}
+            speed={0.3}
+            color={color}
+          />
+        )}
+
+        <Text
+          position={[0, 0, 0.41]}
+          fontSize={0.3}
+          color="#1f2937"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {value}
+        </Text>
+        <Text
+          position={[0, 0, -0.41]}
+          fontSize={0.3}
+          color="#1f2937"
+          anchorX="center"
+          anchorY="middle"
+          rotation={[0, Math.PI, 0]}
+        >
+          {value}
+        </Text>
+        <Text
+          position={[0.41, 0, 0]}
+          fontSize={0.3}
+          color="#1f2937"
+          anchorX="center"
+          anchorY="middle"
+          rotation={[0, Math.PI / 2, 0]}
+        >
+          {value}
+        </Text>
+        <Text
+          position={[-0.41, 0, 0]}
+          fontSize={0.3}
+          color="#1f2937"
+          anchorX="center"
+          anchorY="middle"
+          rotation={[0, -Math.PI / 2, 0]}
+        >
+          {value}
+        </Text>
+        <Text
+          position={[0, 0.41, 0]}
+          fontSize={0.3}
+          color="#1f2937"
+          anchorX="center"
+          anchorY="middle"
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          {value}
+        </Text>
+        <Text
+          position={[0, -0.41, 0]}
+          fontSize={0.3}
+          color="#1f2937"
+          anchorX="center"
+          anchorY="middle"
+          rotation={[Math.PI / 2, 0, 0]}
+        >
+          {value}
+        </Text>
+      </a.group>
+    </group>
+  );
+}
+
+function GameBoard({ board }: { board: number[][][] }) {
+  const spacing = 1.0;
+
+  const gridElements = useMemo(() => {
+    const elements: React.ReactNode[] = [];
+
+    for (let i = 0; i <= GRID_SIZE; i++) {
+      const pos = -1.5 + i * spacing;
+
+      for (let j = 0; j <= GRID_SIZE; j++) {
+        const posY = -1.5 + j * spacing;
+        elements.push(
+          <mesh key={`x-${i}-${j}`} position={[pos, posY, 0]}>
+            <boxGeometry args={[0.02, 0.02, 4]} />
+            <meshStandardMaterial color="#6b7280" transparent opacity={0.3} />
+          </mesh>,
+        );
+      }
+
+      for (let k = 0; k <= GRID_SIZE; k++) {
+        const posZ = -1.5 + k * spacing;
+        elements.push(
+          <mesh key={`y-${i}-${k}`} position={[pos, 0, posZ]}>
+            <boxGeometry args={[4, 0.02, 0.02]} />
+            <meshStandardMaterial color="#6b7280" transparent opacity={0.3} />
+          </mesh>,
+        );
+      }
+
+      for (let j = 0; j <= GRID_SIZE; j++) {
+        const posY = -1.5 + j * spacing;
+        elements.push(
+          <mesh key={`z-${i}-${j}`} position={[0, posY, pos]}>
+            <boxGeometry args={[4, 0.02, 0.02]} />
+            <meshStandardMaterial color="#6b7280" transparent opacity={0.3} />
+          </mesh>,
+        );
       }
     }
-    if (emptyCells.length > 0) {
-      const [z, y, x] =
-        emptyCells[Math.floor(Math.random() * emptyCells.length)];
-      board[z][y][x] = Math.random() < 0.9 ? 2 : 4;
-    }
-  };
 
-  const move = useCallback(
-    (direction: "left" | "right" | "up" | "down" | "forward" | "backward") => {
-      if (gameOver) return;
+    return elements;
+  }, [spacing]);
 
-      const newBoard = board.map((layer) => layer.map((row) => [...row]));
-      let moved = false;
-      let newScore = score;
+  return (
+    <group>
+      {gridElements}
 
-      const moveAndMerge = (line: number[]) => {
-        const filtered = line.filter((cell) => cell !== 0);
-        const merged: number[] = [];
-        let skip = false;
+      {board.map((layer, z) =>
+        layer.map((row, y) =>
+          row.map((cell, x) => {
+            const posX = -1.5 + x * spacing;
+            const posY = 1.5 - y * spacing;
+            const posZ = -1.5 + z * spacing;
+            const isNew = cell !== 0 && Math.random() > 0.7;
+            const isMerged = cell >= 128;
+            return (
+              <Tile
+                key={`${x}-${y}-${z}`}
+                value={cell}
+                position={[posX, posY, posZ]}
+                isNew={isNew}
+                isMerged={isMerged}
+              />
+            );
+          }),
+        ),
+      )}
+    </group>
+  );
+}
 
-        for (let i = 0; i < filtered.length; i++) {
-          if (skip) {
-            skip = false;
-            continue;
-          }
-          if (i < filtered.length - 1 && filtered[i] === filtered[i + 1]) {
-            const mergedValue = filtered[i] * 2;
-            merged.push(mergedValue);
-            newScore += mergedValue;
-            skip = true;
-            moved = true;
+export default function Game2048_3D() {
+  const {
+    board,
+    score,
+    bestScore,
+    gameOver,
+    won,
+    canUndo,
+    move,
+    resetGame,
+    undo,
+  } = useGameEngine3D("2048-3d-best-score");
 
-            if (mergedValue === 2048 && !won) {
-              setWon(true);
-            }
-          } else {
-            merged.push(filtered[i]);
-          }
+  const [displayedScore, setDisplayedScore] = useState(score);
+  const [previousScore, setPreviousScore] = useState(score);
+  const [isScoreAnimating, setIsScoreAnimating] = useState(false);
+
+  useEffect(() => {
+    if (score > previousScore) {
+      setIsScoreAnimating(true);
+      const startScore = previousScore;
+      const endScore = score;
+      const duration = 600;
+      const startTime = Date.now();
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const currentScore = Math.floor(
+          startScore + (endScore - startScore) * progress,
+        );
+        setDisplayedScore(currentScore);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          setPreviousScore(score);
+          setIsScoreAnimating(false);
         }
-
-        while (merged.length < GRID_SIZE) {
-          merged.push(0);
-        }
-
-        return merged;
       };
 
-      if (direction === "left") {
-        // Move along X-axis (negative direction)
-        for (let z = 0; z < GRID_SIZE; z++) {
-          for (let y = 0; y < GRID_SIZE; y++) {
-            const newRow = moveAndMerge(newBoard[z][y]);
-            if (JSON.stringify(newRow) !== JSON.stringify(newBoard[z][y]))
-              moved = true;
-            newBoard[z][y] = newRow;
-          }
-        }
-      } else if (direction === "right") {
-        // Move along X-axis (positive direction)
-        for (let z = 0; z < GRID_SIZE; z++) {
-          for (let y = 0; y < GRID_SIZE; y++) {
-            const reversed = [...newBoard[z][y]].reverse();
-            const newRow = moveAndMerge(reversed).reverse();
-            if (JSON.stringify(newRow) !== JSON.stringify(newBoard[z][y]))
-              moved = true;
-            newBoard[z][y] = newRow;
-          }
-        }
-      } else if (direction === "up") {
-        // Move along Y-axis (positive direction)
-        for (let z = 0; z < GRID_SIZE; z++) {
-          for (let x = 0; x < GRID_SIZE; x++) {
-            const column = newBoard[z].map((row) => row[x]);
-            const newColumn = moveAndMerge(column);
-            if (JSON.stringify(newColumn) !== JSON.stringify(column))
-              moved = true;
-            for (let y = 0; y < GRID_SIZE; y++) {
-              newBoard[z][y][x] = newColumn[y];
-            }
-          }
-        }
-      } else if (direction === "down") {
-        // Move along Y-axis (negative direction)
-        for (let z = 0; z < GRID_SIZE; z++) {
-          for (let x = 0; x < GRID_SIZE; x++) {
-            const column = newBoard[z].map((row) => row[x]).reverse();
-            const newColumn = moveAndMerge(column).reverse();
-            const originalColumn = newBoard[z].map((row) => row[x]);
-            if (JSON.stringify(newColumn) !== JSON.stringify(originalColumn))
-              moved = true;
-            for (let y = 0; y < GRID_SIZE; y++) {
-              newBoard[z][y][x] = newColumn[y];
-            }
-          }
-        }
-      } else if (direction === "forward") {
-        // Move along Z-axis (negative direction)
-        for (let y = 0; y < GRID_SIZE; y++) {
-          for (let x = 0; x < GRID_SIZE; x++) {
-            const column = newBoard.map((layer) => layer[y][x]);
-            const newColumn = moveAndMerge(column);
-            if (JSON.stringify(newColumn) !== JSON.stringify(column))
-              moved = true;
-            for (let z = 0; z < GRID_SIZE; z++) {
-              newBoard[z][y][x] = newColumn[z];
-            }
-          }
-        }
-      } else if (direction === "backward") {
-        // Move along Z-axis (positive direction)
-        for (let y = 0; y < GRID_SIZE; y++) {
-          for (let x = 0; x < GRID_SIZE; x++) {
-            const column = newBoard.map((layer) => layer[y][x]).reverse();
-            const newColumn = moveAndMerge(column).reverse();
-            const originalColumn = newBoard.map((layer) => layer[y][x]);
-            if (JSON.stringify(newColumn) !== JSON.stringify(originalColumn))
-              moved = true;
-            for (let z = 0; z < GRID_SIZE; z++) {
-              newBoard[z][y][x] = newColumn[z];
-            }
-          }
-        }
-      }
-
-      if (moved) {
-        addRandomTile(newBoard);
-        setBoard(newBoard);
-        setScore(newScore);
-
-        if (newScore > bestScore) {
-          setBestScore(newScore);
-          localStorage.setItem("2048-3d-best-score", newScore.toString());
-        }
-
-        if (isGameOver(newBoard)) {
-          setGameOver(true);
-        }
-      }
-    },
-    [board, score, gameOver, bestScore, won],
-  );
-
-  const isGameOver = (board: Board) => {
-    for (let z = 0; z < GRID_SIZE; z++) {
-      for (let y = 0; y < GRID_SIZE; y++) {
-        for (let x = 0; x < GRID_SIZE; x++) {
-          if (board[z][y][x] === 0) return false;
-          if (x < GRID_SIZE - 1 && board[z][y][x] === board[z][y][x + 1])
-            return false;
-          if (y < GRID_SIZE - 1 && board[z][y][x] === board[z][y + 1][x])
-            return false;
-          if (z < GRID_SIZE - 1 && board[z][y][x] === board[z + 1][y][x])
-            return false;
-        }
-      }
+      animate();
+    } else {
+      setDisplayedScore(score);
+      setPreviousScore(score);
     }
-    return true;
-  };
-
-  const resetGame = () => {
-    setBoard(initializeBoard());
-    setScore(0);
-    setGameOver(false);
-    setWon(false);
-  };
+  }, [score, previousScore]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -474,6 +328,8 @@ export default function Game2048_3D() {
           "e",
           "Q",
           "E",
+          "z",
+          "Z",
         ].includes(e.key)
       ) {
         e.preventDefault();
@@ -512,12 +368,16 @@ export default function Game2048_3D() {
         case "E":
           move("backward");
           break;
+        case "z":
+        case "Z":
+          if (canUndo) undo();
+          break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [move]);
+  }, [move, undo, canUndo]);
 
   if (board.length === 0) return null;
 
@@ -565,18 +425,22 @@ export default function Game2048_3D() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Drag to rotate and view the cube
+            Drag to rotate and view the cube • Press Z to undo
           </p>
         </div>
       </div>
 
       <div className="flex items-center justify-between w-full gap-4">
         <div className="flex gap-3">
-          <Card className="px-4 py-2 bg-muted">
+          <Card
+            className={`px-4 py-2 bg-muted ${isScoreAnimating ? "scale-110 transition-transform duration-200" : ""}`}
+          >
             <div className="text-xs text-muted-foreground uppercase tracking-wide">
               Score
             </div>
-            <div className="text-2xl font-bold text-foreground">{score}</div>
+            <div className="text-2xl font-bold text-foreground">
+              {displayedScore}
+            </div>
           </Card>
           <Card className="px-4 py-2 bg-muted">
             <div className="text-xs text-muted-foreground uppercase tracking-wide">
@@ -587,15 +451,27 @@ export default function Game2048_3D() {
             </div>
           </Card>
         </div>
-        <Button
-          onClick={resetGame}
-          size="lg"
-          variant="outline"
-          className="gap-2 bg-transparent"
-        >
-          <RotateCcw className="h-4 w-4" />
-          New Game
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={undo}
+            disabled={!canUndo}
+            size="lg"
+            variant="outline"
+            className="gap-2 bg-transparent"
+          >
+            <Undo2 className="h-4 w-4" />
+            Undo
+          </Button>
+          <Button
+            onClick={resetGame}
+            size="lg"
+            variant="outline"
+            className="gap-2 bg-transparent"
+          >
+            <RotateCcw className="h-4 w-4" />
+            New Game
+          </Button>
+        </div>
       </div>
 
       <div className="relative w-full h-[500px] md:h-[600px] rounded-xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
@@ -603,6 +479,7 @@ export default function Game2048_3D() {
           shadows
           camera={{ position: [6, 6, 6], fov: 50 }}
           gl={{ antialias: true }}
+          frameloop="always"
         >
           <ambientLight intensity={0.4} />
           <directionalLight

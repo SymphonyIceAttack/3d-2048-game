@@ -1,38 +1,14 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Undo2 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-
-type Board = number[][];
+import { useGameEngine2D } from "@/lib/game-engine/hooks";
+import { getTileColor, getTileSize } from "./game-utils";
 
 const GRID_SIZE = 4;
-
-const getTileColor = (value: number) => {
-  const colors: Record<number, string> = {
-    0: "bg-muted/50",
-    2: "bg-secondary text-secondary-foreground",
-    4: "bg-secondary text-secondary-foreground",
-    8: "bg-primary/70 text-primary-foreground",
-    16: "bg-primary/80 text-primary-foreground",
-    32: "bg-primary text-primary-foreground",
-    64: "bg-primary text-primary-foreground",
-    128: "bg-accent/70 text-accent-foreground",
-    256: "bg-accent/80 text-accent-foreground",
-    512: "bg-accent/90 text-accent-foreground",
-    1024: "bg-accent text-accent-foreground",
-    2048: "bg-accent text-accent-foreground",
-  };
-  return colors[value] || "bg-accent text-accent-foreground";
-};
-
-const getTileSize = (value: number) => {
-  if (value >= 1024) return "text-2xl md:text-3xl";
-  if (value >= 128) return "text-3xl md:text-4xl";
-  return "text-4xl md:text-5xl";
-};
 
 const KeyboardKey = ({
   children,
@@ -57,155 +33,92 @@ const KeyboardKey = ({
   );
 };
 
-export default function Game2048() {
-  const [board, setBoard] = useState<Board>([]);
-  const [score, setScore] = useState(0);
-  const [bestScore, setBestScore] = useState(0);
-  const [gameOver, setGameOver] = useState(false);
-  const [won, setWon] = useState(false);
+interface AnimatedTileProps {
+  value: number;
+  isNew?: boolean;
+  isMerged?: boolean;
+}
 
-  const initializeBoard = useCallback(() => {
-    const newBoard: Board = Array(GRID_SIZE)
-      .fill(null)
-      .map(() => Array(GRID_SIZE).fill(0));
-    addRandomTile(newBoard);
-    addRandomTile(newBoard);
-    return newBoard;
-  }, []);
+const AnimatedTile: React.FC<AnimatedTileProps> = ({
+  value,
+  isNew,
+  isMerged,
+}) => {
+  if (value === 0) {
+    return (
+      <div
+        className={`
+          w-16 h-16 md:w-20 md:h-20 rounded-lg
+          bg-muted/50 border border-border/20
+        `}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`
+        w-16 h-16 md:w-20 md:h-20 rounded-lg flex items-center justify-center
+        font-bold
+        ${getTileColor(value)} ${getTileSize(value)}
+        ${isMerged ? "shadow-lg shadow-primary/30" : ""}
+        transform transition-all duration-200 ease-out
+        ${isNew ? "scale-110 animate-pulse" : "scale-100"}
+        ${isMerged ? "scale-125" : ""}
+      `}
+    >
+      {value}
+    </div>
+  );
+};
+
+export default function Game2048() {
+  const {
+    board,
+    score,
+    bestScore,
+    gameOver,
+    won,
+    canUndo,
+    move,
+    resetGame,
+    undo,
+  } = useGameEngine2D("2048-best-score");
+
+  const [displayedScore, setDisplayedScore] = useState(score);
+  const [previousScore, setPreviousScore] = useState(score);
+  const [isScoreAnimating, setIsScoreAnimating] = useState(false);
 
   useEffect(() => {
-    const savedBest = localStorage.getItem("2048-best-score");
-    if (savedBest) setBestScore(Number.parseInt(savedBest, 10));
-    setBoard(initializeBoard());
-  }, [initializeBoard]);
+    if (score > previousScore) {
+      setIsScoreAnimating(true);
+      const startScore = previousScore;
+      const endScore = score;
+      const duration = 600;
+      const startTime = Date.now();
 
-  const addRandomTile = (board: Board) => {
-    const emptyCells: [number, number][] = [];
-    for (let i = 0; i < GRID_SIZE; i++) {
-      for (let j = 0; j < GRID_SIZE; j++) {
-        if (board[i][j] === 0) emptyCells.push([i, j]);
-      }
-    }
-    if (emptyCells.length > 0) {
-      const [row, col] =
-        emptyCells[Math.floor(Math.random() * emptyCells.length)];
-      board[row][col] = Math.random() < 0.9 ? 2 : 4;
-    }
-  };
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const currentScore = Math.floor(
+          startScore + (endScore - startScore) * progress,
+        );
+        setDisplayedScore(currentScore);
 
-  const move = useCallback(
-    (direction: "up" | "down" | "left" | "right") => {
-      if (gameOver) return;
-
-      const newBoard = board.map((row) => [...row]);
-      let moved = false;
-      let newScore = score;
-
-      const moveAndMerge = (line: number[]) => {
-        const filtered = line.filter((cell) => cell !== 0);
-        const merged: number[] = [];
-        let skip = false;
-
-        for (let i = 0; i < filtered.length; i++) {
-          if (skip) {
-            skip = false;
-            continue;
-          }
-          if (i < filtered.length - 1 && filtered[i] === filtered[i + 1]) {
-            const mergedValue = filtered[i] * 2;
-            merged.push(mergedValue);
-            newScore += mergedValue;
-            skip = true;
-            moved = true;
-
-            if (mergedValue === 2048 && !won) {
-              setWon(true);
-            }
-          } else {
-            merged.push(filtered[i]);
-          }
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          setPreviousScore(score);
+          setIsScoreAnimating(false);
         }
-
-        while (merged.length < GRID_SIZE) {
-          merged.push(0);
-        }
-
-        return merged;
       };
 
-      if (direction === "left") {
-        for (let i = 0; i < GRID_SIZE; i++) {
-          const newRow = moveAndMerge(newBoard[i]);
-          if (JSON.stringify(newRow) !== JSON.stringify(newBoard[i]))
-            moved = true;
-          newBoard[i] = newRow;
-        }
-      } else if (direction === "right") {
-        for (let i = 0; i < GRID_SIZE; i++) {
-          const reversed = [...newBoard[i]].reverse();
-          const newRow = moveAndMerge(reversed).reverse();
-          if (JSON.stringify(newRow) !== JSON.stringify(newBoard[i]))
-            moved = true;
-          newBoard[i] = newRow;
-        }
-      } else if (direction === "up") {
-        for (let j = 0; j < GRID_SIZE; j++) {
-          const column = newBoard.map((row) => row[j]);
-          const newColumn = moveAndMerge(column);
-          if (JSON.stringify(newColumn) !== JSON.stringify(column))
-            moved = true;
-          for (let i = 0; i < GRID_SIZE; i++) {
-            newBoard[i][j] = newColumn[i];
-          }
-        }
-      } else if (direction === "down") {
-        for (let j = 0; j < GRID_SIZE; j++) {
-          const column = newBoard.map((row) => row[j]).reverse();
-          const newColumn = moveAndMerge(column).reverse();
-          const originalColumn = newBoard.map((row) => row[j]);
-          if (JSON.stringify(newColumn) !== JSON.stringify(originalColumn))
-            moved = true;
-          for (let i = 0; i < GRID_SIZE; i++) {
-            newBoard[i][j] = newColumn[i];
-          }
-        }
-      }
-
-      if (moved) {
-        addRandomTile(newBoard);
-        setBoard(newBoard);
-        setScore(newScore);
-
-        if (newScore > bestScore) {
-          setBestScore(newScore);
-          localStorage.setItem("2048-best-score", newScore.toString());
-        }
-
-        if (isGameOver(newBoard)) {
-          setGameOver(true);
-        }
-      }
-    },
-    [board, score, gameOver, bestScore, won],
-  );
-
-  const isGameOver = (board: Board) => {
-    for (let i = 0; i < GRID_SIZE; i++) {
-      for (let j = 0; j < GRID_SIZE; j++) {
-        if (board[i][j] === 0) return false;
-        if (j < GRID_SIZE - 1 && board[i][j] === board[i][j + 1]) return false;
-        if (i < GRID_SIZE - 1 && board[i][j] === board[i + 1][j]) return false;
-      }
+      animate();
+    } else {
+      setDisplayedScore(score);
+      setPreviousScore(score);
     }
-    return true;
-  };
-
-  const resetGame = () => {
-    setBoard(initializeBoard());
-    setScore(0);
-    setGameOver(false);
-    setWon(false);
-  };
+  }, [score, previousScore]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -223,6 +136,8 @@ export default function Game2048() {
           "A",
           "S",
           "D",
+          "z",
+          "Z",
         ].includes(e.key)
       ) {
         e.preventDefault();
@@ -249,14 +164,17 @@ export default function Game2048() {
         case "D":
           move("right");
           break;
+        case "z":
+        case "Z":
+          if (canUndo) undo();
+          break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [move]);
+  }, [move, undo, canUndo]);
 
-  // Touch support
   useEffect(() => {
     let touchStartX = 0;
     let touchStartY = 0;
@@ -291,7 +209,18 @@ export default function Game2048() {
     };
   }, [move]);
 
-  if (board.length === 0) return null;
+  if (board.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-6 w-full max-w-lg">
+        <div className="text-center">
+          <h1 className="text-6xl md:text-7xl font-bold text-foreground">
+            2048
+          </h1>
+          <p className="text-muted-foreground mt-4">Initializing game...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-lg">
@@ -302,7 +231,6 @@ export default function Game2048() {
             Use keyboard to move tiles
           </p>
           <div className="flex gap-6">
-            {/* Arrow keys */}
             <div className="flex flex-col items-center gap-1">
               <div className="flex flex-col items-center">
                 <KeyboardKey>↑</KeyboardKey>
@@ -317,7 +245,6 @@ export default function Game2048() {
               </span>
             </div>
 
-            {/* WASD keys */}
             <div className="flex flex-col items-center gap-1">
               <div className="flex flex-col items-center">
                 <KeyboardKey>W</KeyboardKey>
@@ -330,17 +257,23 @@ export default function Game2048() {
               <span className="text-xs text-muted-foreground mt-1">WASD</span>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">or swipe</p>
+          <p className="text-xs text-muted-foreground">
+            or swipe • Press Z to undo
+          </p>
         </div>
       </div>
 
       <div className="flex items-center justify-between w-full gap-4">
         <div className="flex gap-3">
-          <Card className="px-4 py-2 bg-muted">
+          <Card
+            className={`px-4 py-2 bg-muted ${isScoreAnimating ? "scale-110 transition-transform duration-200" : ""}`}
+          >
             <div className="text-xs text-muted-foreground uppercase tracking-wide">
               Score
             </div>
-            <div className="text-2xl font-bold text-foreground">{score}</div>
+            <div className="text-2xl font-bold text-foreground">
+              {displayedScore}
+            </div>
           </Card>
           <Card className="px-4 py-2 bg-muted">
             <div className="text-xs text-muted-foreground uppercase tracking-wide">
@@ -351,15 +284,27 @@ export default function Game2048() {
             </div>
           </Card>
         </div>
-        <Button
-          onClick={resetGame}
-          size="lg"
-          variant="outline"
-          className="gap-2 bg-transparent"
-        >
-          <RotateCcw className="h-4 w-4" />
-          New Game
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={undo}
+            disabled={!canUndo}
+            size="lg"
+            variant="outline"
+            className="gap-2 bg-transparent"
+          >
+            <Undo2 className="h-4 w-4" />
+            Undo
+          </Button>
+          <Button
+            onClick={resetGame}
+            size="lg"
+            variant="outline"
+            className="gap-2 bg-transparent"
+          >
+            <RotateCcw className="h-4 w-4" />
+            New Game
+          </Button>
+        </div>
       </div>
 
       <div className="relative">
@@ -370,19 +315,18 @@ export default function Game2048() {
           }}
         >
           {board.map((row, i) =>
-            row.map((cell, j) => (
-              <div
-                key={`${i}-${j}`}
-                className={`
-                  w-16 h-16 md:w-20 md:h-20 rounded-lg flex items-center justify-center
-                  font-bold transition-all duration-150
-                  ${getTileColor(cell)} ${getTileSize(cell)}
-                  ${cell !== 0 ? "animate-in zoom-in-50 duration-200" : ""}
-                `}
-              >
-                {cell !== 0 && cell}
-              </div>
-            )),
+            row.map((cell, j) => {
+              const isNew = cell !== 0 && Math.random() > 0.7;
+              const isMerged = cell >= 128;
+              return (
+                <AnimatedTile
+                  key={`${i}-${j}`}
+                  value={cell}
+                  isNew={isNew}
+                  isMerged={isMerged}
+                />
+              );
+            }),
           )}
         </div>
 

@@ -2,12 +2,15 @@ import { readItems } from "@directus/sdk";
 import type { Metadata } from "next";
 import { draftMode } from "next/headers";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Breadcrumb } from "@/components/blog/breadcrumb";
 import { MarkdownWithIds } from "@/components/blog/markdown-with-ids";
 import { PostCTA } from "@/components/blog/post-cta";
 import { RecentPosts } from "@/components/blog/recent-posts";
-import { SiteNav } from "@/components/blog/site-nav";
 import { TableOfContents } from "@/components/blog/table-of-contents";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import directus from "@/lib/directus";
 
@@ -63,8 +66,28 @@ export default async function PostPage({
 
     return (
       <>
-        <SiteNav />
-        <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-purple-950 dark:to-slate-900 py-12 px-4">
+        <div className="w-full px-4 py-6">
+          <Breadcrumb
+            items={[
+              { label: "Home", href: "/" },
+              { label: "Blog", href: "/posts" },
+              { label: title },
+            ]}
+          >
+            <Link href="/">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="font-semibold hover:bg-primary hover:text-primary-foreground transition-colors md:text-base"
+              >
+                Home
+              </Button>
+            </Link>
+            <ThemeToggle />
+          </Breadcrumb>
+        </div>
+
+        <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-purple-950 dark:to-slate-900 py-12 px-4 pt-20 md:pt-0">
           <div className="max-w-7xl mx-auto">
             {isEnabled && (
               <Card className="mb-6 border-purple-500 dark:border-purple-600 bg-purple-50 dark:bg-purple-950/30">
