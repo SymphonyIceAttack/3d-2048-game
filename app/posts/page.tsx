@@ -1,5 +1,6 @@
 import { readItems } from "@directus/sdk";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/blog/breadcrumb";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -35,6 +36,7 @@ export default async function BlogPage() {
           "description",
           "published_at",
           "status",
+          "imageurl",
         ],
         filter: {
           status: { _eq: "published" },
@@ -89,7 +91,17 @@ export default async function BlogPage() {
                   href={`/posts/${post.slug}`}
                   className="group"
                 >
-                  <Card className="h-full transition-all hover:shadow-lg hover:border-purple-500 border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-950">
+                  <Card className="h-full transition-all hover:shadow-lg hover:border-purple-500 border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-950 overflow-hidden">
+                    {post.imageurl && (
+                      <div className="relative w-full h-48 overflow-hidden">
+                        <Image
+                          fill={true}
+                          src={`https://symcloud.top/${post.imageurl}`}
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    )}
                     <CardHeader>
                       <CardTitle className="text-2xl group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors text-balance text-gray-900 dark:text-white">
                         {post.title}
