@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![3D 2048 Game](./public/og-image.png)
+![3D 2048 Game](./public/logo.png)
 
 **Experience the classic 2048 puzzle in stunning 3D space! Built with Next.js, React 19, and Three.js**
 
